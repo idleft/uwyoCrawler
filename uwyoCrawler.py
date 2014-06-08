@@ -12,23 +12,50 @@ def stripTags(line):
 	return line
 
 def getInput():
-	startTime = raw_input("Start Time(eg: 2013060612): ")#"2014"#
-	endTime = raw_input("End Time(eg: 201361712): ")
+	startTime = raw_input("Start Time(eg: 20130606): ")#"2014"#
+	endTime = raw_input("End Time(eg: 20130712): ")
 	stnm = raw_input("Station name (eg: 72318): ")#"72318"#
 	return [startTime,endTime,stnm]
 
 def tgetInput():
-	return ["2014050612","2014051712","72318"]
+	return ["20140506","20140517","72318"]
 
-def crawler(url,ofName):
-	data = urllib2.urlopen(url).readlines()
-	oFile = open(ofName,"w")
-	for line in data:
-		line = stripTags(line)
-		if line[0:11] == "Description":
-			break
-		oFile.write(line)
-	oFile.close()
+def findMonthEnd(d0):
+	de = d0
+	while(d0.month==de.month):
+		d0 = d0+timedelta(1)
+	return d0-timedelta(1)
+
+def crawler(d1,d2,stnm,svloc):
+	iurl = url%(d1.year,d1.month,d1.day,"00",d2.day,"12",stnm)
+	print iurl
+	timeflag = True
+	conFlag = False
+	data = urllib2.urlopen(iurl).readlines()
+	for il in data:
+		il = stripTags(il)
+		if il[0:5] == stnm:
+			conFlag = True
+			ofName = svloc+os.sep+stnm+'-'+d1.strftime("%Y%m%d")
+			if timeflag:
+				ofName+="00.txt"
+			else:
+				ofName+="12.txt"
+				d1 += timedelta(1)
+			timeflag = not timeflag
+			oFile = open(ofName,"w")
+		if il[0:11] == "Description":
+			break	
+		if conFlag:
+			oFile.write(il)
+
+def preCrawler(d1,d2,stnm,svloc):
+	while(d1<d2):
+		ed = findMonthEnd(d1)
+		ed = min(ed,d2)
+		crawler(d1,ed,stnm,svloc)
+		d1 = ed+timedelta(1)
+
 
 def getSvLoc():
 	return tkFileDialog.askdirectory(title="Please select your directory") 
@@ -37,7 +64,7 @@ def tgetSvLoc():
 	return "Data"
 
 def getDateStr(st):
-	return [int(st[0:4]),int(st[4:6]),int(st[6:8]),int(st[8:])]
+	return [int(st[0:4]),int(st[4:6]),int(st[6:])]
 
 def dateRange(sdate,edate):
 	print sdate,edate
@@ -45,26 +72,18 @@ def dateRange(sdate,edate):
 		yield sdate+timedelta(n)
 
 def uwyoCrawler():
-	[sTime,eTime,stnm] = tgetInput()
-	[syear,smonth,sday,shour] = getDateStr(sTime)
-	[eyear,emonth,eday,ehour] = getDateStr(eTime)
-	svloc = tgetSvLoc()
+	[sTime,eTime,stnm] = getInput()
+	[syear,smonth,sday] = getDateStr(sTime)
+	[eyear,emonth,eday] = getDateStr(eTime)
+	svloc = getSvLoc()
 	date1 = date(syear,smonth,sday)
 	date2 = date(eyear,emonth,eday)
 	intv = (date2-date1).days
-	for days in range(intv):
-		idate = date1+timedelta(days)
-		iurl = url%(idate.year,idate.month,idate.day,"00",idate.day,"00",stnm)
-		ofName = svloc+os.sep+stnm+'-'+idate.strftime("%Y%m%d")+"00.txt"
-		crawler(iurl,ofName)
-
-		iurl = url%(idate.year,idate.month,idate.day,"12",idate.day,"12",stnm)
-		ofName = svloc+os.sep+stnm+'-'+idate.strftime("%Y%m%d")+"12.txt"
-		crawler(iurl,ofName)
-		print iurl,ofName
+	preCrawler(date1,date2,stnm,svloc)
 
 
 if __name__ == '__main__':
-	# print getDateStr("2014061712")
 	uwyoCrawler()
-	# print stripTags("<HTML> ss")
+	# print findMonthEnd(date(2013,2,1))
+	# crawler(date(2013,02,2),date(2013,02,5),"72318","Data")
+	# preCrawler(date(2013,02,2),date(2013,03,5),"72318","Data")
